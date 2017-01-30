@@ -1,4 +1,6 @@
-W<?php
+<?php
+
+namespace Brainy;
 
 /**
  * Class NeuralNetwork
