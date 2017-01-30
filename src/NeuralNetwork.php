@@ -131,14 +131,13 @@ class NeuralNetwork
      * 
      * @param int $layer            the layer to get the learning rate for
      * @return float                the learning rate for that layer
-     * @throws OutOfBoundsException if there is no layer at the given index
      */
     public function getLearningRate($layer)
     {
         if (array_key_exists($layer, $this->learningRate)) {
             return $this->learningRate[$layer];
         }
-        throw new OutOfBoundsException('No layer exists at the index you specified.');
+        return $this->learningRate[0];
     }
 
     /**
@@ -678,7 +677,7 @@ class NeuralNetwork
                 }
 
                 // Use the error gradient to determine a weight correction for each node.
-                $previousLayer = $layer -1;
+                $previousLayer = $layer - 1;
                 $learningRate = $this->getLearningRate($previousLayer);
                 for ($prev_index = 0; $prev_index < ($this->nodeCount[$previousLayer]); $prev_index ++) {
 
