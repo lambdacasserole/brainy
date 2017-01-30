@@ -6,32 +6,42 @@ use OutOfBoundsException;
 use OutOfRangeException;
 
 /**
- * Class NeuralNetwork
+ * An implementation of a neural network.
+ *
+ * @author Edward Akerboom <github@infostreams.net>
+ * @author Tremani <https://www.tremani.nl/>
+ * @author Saul Johnson <saul.a.johnson@gmail.com>
+ * @package Brainy
+ * @since 30/01/2017
  */
 class NeuralNetwork
 {
-    protected $nodeCount = [];
-    protected $nodeValue = [];
-    protected $nodeThreshold = [];
-    protected $edgeWeight = [];
-    protected $learningRate = [0.1];
-    protected $layerCount = 0;
-    protected $previousWeightCorrection = [];
-    protected $momentum = 0.8;
-    protected $weightsInitialized = false;
+    // Network state.
+    private $nodeCount = [];
+    private $nodeValue = [];
+    private $nodeThreshold = [];
+    private $edgeWeight = [];
+    private $learningRate = [0.1];
+    private $layerCount = 0;
+    private $previousWeightCorrection = [];
+    private $momentum = 0.8;
+    private $weightsInitialized = false;
 
-    public $trainInputs = [];
-    public $trainOutput = [];
-    public $trainDataIds = [];
+    // Training data.
+    private $trainInputs = [];
+    private $trainOutput = [];
+    private $trainDataIds = [];
 
-    public $controlInputs = [];
-    public $controlOutput = [];
-    public $controlDataId = [];
+    // Control data.
+    private $controlInputs = [];
+    private $controlOutput = [];
+    private $controlDataId = [];
 
-    protected $epoch;
-    protected $errorTrainingSet;
-    protected $errorControlSet;
-    protected $success;
+    // Network results.
+    private $epoch;
+    private $errorTrainingSet;
+    private $errorControlSet;
+    private $success;
 
     /**
      * Initialises a new instance of a neural network.
@@ -92,14 +102,14 @@ class NeuralNetwork
     /**
      * Sets the learning rate between each layer individually.
      *
-     * @param array ...$learningRates an array containing the learning rates
-     * @throws OutOfRangeException
+     * @param array ...$learningRates   an array containing the learning rates
+     * @throws OutOfRangeException      if the number of learning rates exceeds the number of synapse layers
      */
     public function setLearningRates(...$learningRates)
     {
         if (count($learningRates) != $this->layerCount - 1) {
-            throw new OutOfRangeException('The number of learning rates provided must be equal to one less than the number'
-                . ' of layers.');
+            throw new OutOfRangeException('The number of learning rates provided must be equal to one less than the'
+                . ' number of layers.');
         }
         $this->validateLearningRates($learningRates);
         $this->learningRate = $learningRates;
@@ -119,9 +129,9 @@ class NeuralNetwork
     /**
      * Gets the learning rate for a specific layer.
      * 
-     * @param int $layer    the layer to get the learning rate for
-     * @return float         the learning rate for that layer
-     * @throws OutOfBoundsException
+     * @param int $layer            the layer to get the learning rate for
+     * @return float                the learning rate for that layer
+     * @throws OutOfBoundsException if there is no layer at the given index
      */
     public function getLearningRate($layer)
     {
@@ -238,9 +248,10 @@ class NeuralNetwork
     /**
      * Adds a training input and output vector.
      * 
-     * @param array $input  an input vector
-     * @param array $output the corresponding output
-     * @param int $id       an identifier for this piece of data (optional)
+     * @param array $input          an input vector
+     * @param array $output         the corresponding output
+     * @param int $id               an identifier for this piece of data (optional)
+     * @throws OutOfRangeException  if the data size does not match the network size
      */
     public function addTrainingData($input, $output, $id = null)
     {
@@ -278,9 +289,10 @@ class NeuralNetwork
     /**
      * Add a set of control data to the network.
      * 
-     * @param array $input      an input vector
-     * @param array $output     the corresponding output
-     * @param int $id           an identifier for this piece of data (optional)
+     * @param array $input          an input vector
+     * @param array $output         the corresponding output
+     * @param int $id               an identifier for this piece of data (optional)
+     * @throws OutOfRangeException  if the data size does not match the network size
      */
     public function addControlData($input, $output, $id = null)
     {
@@ -415,7 +427,7 @@ class NeuralNetwork
             $this->initWeights();
         }
 
-        // TODO: Tidy.
+        // Repeat until either a success or failure state is reached.
         $epoch = 0;
         $errorControlSet = [];
         $averageErrorControlSet = [];
@@ -423,7 +435,7 @@ class NeuralNetwork
         do {
 
             // Train using training data.
-            for ($i = 0; $i < count($this->trainInputs); $i ++) {
+            for ($i = 0; $i < count($this->trainInputs); $i++) {
 
                 // Select a training pattern at random.
                 $index = mt_rand(0, count($this->trainInputs) - 1);
@@ -442,7 +454,7 @@ class NeuralNetwork
             // Buy some time.
             set_time_limit(300);
 
-            // Display the overall network error after each epoch.
+            // Calculate the overall network error after each epoch.
             $squaredError = $this->trainingSetRootMeanSquareError();
             $squaredErrorControlSet = 0;
             $slope = 0;
@@ -450,10 +462,10 @@ class NeuralNetwork
                 $squaredErrorControlSet = $this->controlSetRootMeanSquareError();
                 $errorControlSet[] = $squaredErrorControlSet;
 
+                // Calculate slope using a subset of the control data (a sample) if needed.
                 if (count($errorControlSet) > $sampleCount) {
                     $averageErrorControlSet[] = array_sum(array_slice($errorControlSet, - $sampleCount)) / $sampleCount;
                 }
-
                 $slope = $this->fitLine($averageErrorControlSet);
             }
             
@@ -466,11 +478,13 @@ class NeuralNetwork
 
         } while (!$success && !$failure);
 
+        // Update class state to reflect result.
         $this->setEpoch($epoch);
         $this->setErrorTrainingSet($squaredError);
         $this->setErrorControlSet($squaredErrorControlSet);
         $this->setTrainingSuccessful($success);
 
+        // Return success or failure.
         return $success;
     }
 
@@ -555,44 +569,31 @@ class NeuralNetwork
     }
 
     /**
-     * Finds the least square fitting line for the given data. 
-     * 
-     * This function is used to determine if the network is overtraining itself. If 
-     * the line through the controlset's most recent squared errors is going 'up', 
-     * then it's time to stop training.
-     * 
-     * @param array $data The points to fit a line to. The keys of this array represent 
-     *                    the 'x'-value of the point, the corresponding value is the 
-     *                    'y'-value of the point.
-     * @return array An array containing, respectively, the slope and the offset of the fitted line.
+     * Finds the least square fitting line for the given data.
+     *
+     * @param array $data   the points to fit a line to
+     * @return array        an array containing, respectively, the slope and the offset of the fitted line
      */
-    private function fitLine($data) {
-        // based on 
-        //    http://mathworld.wolfram.com/LeastSquaresFitting.html
-        // TODO: Tidy.
+    private function fitLine($data)
+    {
+        /* Based on: http://mathworld.wolfram.com/LeastSquaresFitting.html */
         $n = count($data);
-
         if ($n > 1) {
-            $sum_y = 0;
-            $sum_x = 0;
-            $sum_x2 = 0;
-            $sum_xy = 0;
+            $sumY = 0;
+            $sumX = 0;
+            $sumXSquared = 0;
+            $sumXY = 0;
             foreach ($data as $x => $y) {
-                $sum_x += $x;
-                $sum_y += $y;
-                $sum_x2 += $x * $x;
-                $sum_xy += $x * $y;
+                $sumX += $x;
+                $sumY += $y;
+                $sumXSquared += $x * $x;
+                $sumXY += $x * $y;
             }
-
-            // implementation of formula (12)
-            $offset = ($sum_y * $sum_x2 - $sum_x * $sum_xy) / ($n * $sum_x2 - $sum_x * $sum_x);
-
-            // implementation of formula (13)
-            $slope = ($n * $sum_xy - $sum_x * $sum_y) / ($n * $sum_x2 - $sum_x * $sum_x);
-
-            return array ($slope, $offset);
+            $offset = ($sumY * $sumXSquared - $sumX * $sumXY) / ($n * $sumXSquared - $sumX * $sumX);
+            $slope = ($n * $sumXY - $sumX * $sumY) / ($n * $sumXSquared - $sumX * $sumX);
+            return [$slope, $offset];
         } else {
-            return array (0.0, 0.0);
+            return [0.0, 0.0]; // Less than two points, no slope.
         }
     }
 
@@ -639,71 +640,70 @@ class NeuralNetwork
     /**
     * Performs the back-propagation algorithm. This changes the weights and thresholds of the network.
     * 
-    * @param array $output    the output obtained by the network
-    * @param array $desired    the desired output
+    * @param array $output  the output obtained by the network
+    * @param array $desired the desired output
     */
     private function backPropagate($output, $desired)
     {
+        // Propagate the difference between output and desired output through the layers.
         $errorGradient = [];
         $outputLayer = $this->layerCount - 1;
-
         $momentum = $this->getMomentum();
-
-        // Propagate the difference between output and desired output through the layers.
         for ($layer = $this->layerCount - 1; $layer > 0; $layer--) {
             for ($node = 0; $node < $this->nodeCount[$layer]; $node++) {
+
                 // Determine error gradient.
                 if ($layer == $outputLayer) {
+
                     // Calculate error between desired output and actual output for the output layer.
                     $error = $desired[$node] - $output[$node];
 
                     // Calculate the error gradient.
                     $errorGradient[$layer][$node] = $this->derivativeActivation($output[$node]) * $error;
                 } else {
+
                     // Sum the product of the edge weight and error gradient of the next layer for hidden layers.
                     $nextLayer = $layer + 1;
-
                     $productSum = 0;
                     for ($nextInput = 0; $nextInput < ($this->nodeCount[$nextLayer]); $nextInput++) {
-                        $_errorgradient = $errorGradient[$nextLayer][$nextInput];
-                        $_edgeWeight = $this->edgeWeight[$layer][$node][$nextInput];
+                        $nextErrorGradient = $errorGradient[$nextLayer][$nextInput];
+                        $nextEdgeWeight = $this->edgeWeight[$layer][$node][$nextInput];
 
-                        $productSum = $productSum + $_errorgradient * $_edgeWeight;
+                        $productSum = $productSum + $nextErrorGradient * $nextEdgeWeight;
                     }
 
-                    // 1b. calculate errorgradient
+                    // Calculate the error gradient.
                     $nodeValue = $this->nodeValue[$layer][$node];
                     $errorGradient[$layer][$node] = $this->derivativeActivation($nodeValue) * $productSum;
                 }
 
-                // step 2: use the errorgradient to determine a weight correction for each node
-                $prev_layer = $layer -1;
-                $learning_rate = $this->getLearningRate($prev_layer);
+                // Use the error gradient to determine a weight correction for each node.
+                $previousLayer = $layer -1;
+                $learningRate = $this->getLearningRate($previousLayer);
+                for ($prev_index = 0; $prev_index < ($this->nodeCount[$previousLayer]); $prev_index ++) {
 
-                for ($prev_index = 0; $prev_index < ($this->nodeCount[$prev_layer]); $prev_index ++) {
+                    // Obtain node value, edge weight and learning rate.
+                    $nodeValue = $this->nodeValue[$previousLayer][$prev_index];
+                    $edgeWeight = $this->edgeWeight[$previousLayer][$prev_index][$node];
 
-                    // 2a. obtain nodeValue, edgeWeight and learning rate
-                    $nodeValue = $this->nodeValue[$prev_layer][$prev_index];
-                    $edgeWeight = $this->edgeWeight[$prev_layer][$prev_index][$node];
+                    // Calculate weight correction.
+                    $weightCorrection = $learningRate * $nodeValue * $errorGradient[$layer][$node];
 
-                    // 2b. calculate weight correction
-                    $weight_correction = $learning_rate * $nodeValue * $errorGradient[$layer][$node];
+                    // Retrieve previous weight correction.
+                    $previousWeightCorrection = @$this->previousWeightCorrection[$layer][$node];
 
-                    // 2c. retrieve previous weight correction
-                    $prev_weightcorrection = @$this->previousWeightCorrection[$layer][$node];
+                    // Combine those into a new weight (momentum learning).
+                    $new_weight = $edgeWeight + $weightCorrection + $momentum * $previousWeightCorrection;
 
-                    // 2d. combine those ('momentum learning') to a new weight
-                    $new_weight = $edgeWeight + $weight_correction + $momentum * $prev_weightcorrection;
+                    // Assign the new weight to this edge.
+                    $this->edgeWeight[$previousLayer][$prev_index][$node] = $new_weight;
 
-                    // 2e. assign the new weight to this edge
-                    $this->edgeWeight[$prev_layer][$prev_index][$node] = $new_weight;
-
-                    // 2f. remember this weightcorrection
-                    $this->previousWeightCorrection[$layer][$node] = $weight_correction;
+                    // Remember this weight correction.
+                    $this->previousWeightCorrection[$layer][$node] = $weightCorrection;
                 }
 
-                // step 3: use the errorgradient to determine threshold correction
-                $threshold_correction = $learning_rate * -1 * $errorGradient[$layer][$node];
+                // Use the error gradient to determine the threshold correction.
+                $threshold_correction = $learningRate * -1 * $errorGradient[$layer][$node];
                 $new_threshold = $this->nodeThreshold[$layer][$node] + $threshold_correction;
 
                 $this->nodeThreshold[$layer][$node] = $new_threshold;
