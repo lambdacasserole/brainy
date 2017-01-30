@@ -396,110 +396,85 @@ class NeuralNetwork
     }
 
     /**
-     * Starts the training process.
+     * Trains the neural network.
      * 
-     * @param int $maxEpochs The maximum number of epochs
-     * @param float $maxError The maximum squared error in the training data
-     * @return bool 'true' if the training was successful, 'false' otherwise
+     * @param int $maxEpochs    the maximum number of epochs
+     * @param float $maxError   the maximum squared error in the training data
+     * @return bool             true if the training was successful, otherwise false
      */
-    public function train($maxEpochs = 500, $maxError = 0.01) {
-
+    public function train($maxEpochs = 500, $maxError = 0.01)
+    {
+        // Initialize weights if not already initialized.
         if (!$this->weightsInitialized) {
             $this->initWeights();
         }
 
-        if ($this->isVerbose()) {
-            echo "<table>";
-            echo "<tr><th>#</th><th>error(trainingdata)</th><th>error(controldata)</th><th>slope(error(controldata))</th></tr>";
-        }
-
+        // TODO: Tidy.
         $epoch = 0;
-        $errorControlSet = array ();
-        $avgErrorControlSet = array ();
-        $sample_count = 10;
+        $errorControlSet = [];
+        $averageErrorControlSet = [];
+        $sampleCount = 10;
         do {
-//                        echo "<tr><td colspan=10><b>epoch $epoch</b></td></tr>";
+
+            // Train using training data.
             for ($i = 0; $i < count($this->trainInputs); $i ++) {
-                // select a training pattern at random
+
+                // Select a training pattern at random.
                 $index = mt_rand(0, count($this->trainInputs) - 1);
 
-                // determine the input, and the desired output
+                // Determine the input, and the desired output.
                 $input = $this->trainInputs[$index];
                 $desired_output = $this->trainOutput[$index];
 
-                // calculate the actual output
+                // Calculate the actual output.
                 $output = $this->calculate($input);
 
-//                              echo "<tr><td></td><td>Training set $i</td><td>input = (" . implode(", ", $input) . ")</td>";
-//                 echo "<td>desired = (" . implode(", ", $desired_output) . ")</td>";
-//                echo "<td>output = (" . implode(", ", $output) .")</td></tr>";
-
-                // change network weights
+                // Change network weights.
                 $this->backPropagate($output, $desired_output);
             }
 
-            // buy some time
+            // Buy some time.
             set_time_limit(300);
 
-            //display the overall network error after each epoch
-            $squaredError = $this->epochRootMeanSquareError();
+            // Display the overall network error after each epoch.
+            $squaredError = $this->trainingSetRootMeanSquareError();
+            $squaredErrorControlSet = 0;
+            $slope = 0;
             if ($epoch % 2 == 0) {
                 $squaredErrorControlSet = $this->controlSetRootMeanSquareError();
                 $errorControlSet[] = $squaredErrorControlSet;
 
-                if (count($errorControlSet) > $sample_count) {
-                    $avgErrorControlSet[] = array_sum(array_slice($errorControlSet, -$sample_count)) / $sample_count;
+                if (count($errorControlSet) > $sampleCount) {
+                    $averageErrorControlSet[] = array_sum(array_slice($errorControlSet, - $sampleCount)) / $sampleCount;
                 }
 
-                list ($slope, $offset) = $this->fitLine($avgErrorControlSet);
-                $controlset_msg = $squaredErrorControlSet;
-            } else {
-                $controlset_msg = "";
-            }
-
-            if ($this->isVerbose()) {
-                echo "<tr><td><b>$epoch</b></td><td>$squaredError</td><td>$controlset_msg";
-                echo "<script type='text/javascript'>window.scrollBy(0,100);</script>";
-                echo "</td><td>$slope</td></tr>";
-                echo "</td></tr>";
-
-                flush();
-                ob_flush();
+                $slope = $this->fitLine($averageErrorControlSet);
             }
             
-            // conditions for a 'successful' stop:
-            // 1. the squared error is now lower than the provided maximum error
-            $stop_1 = $squaredError <= $maxError || $squaredErrorControlSet <= $maxError;
+            // Stop with success if the squared error is now lower than the provided maximum error.
+            $success = $squaredError <= $maxError || $squaredErrorControlSet <= $maxError;
 
-            // conditions for an 'unsuccessful' stop
-            // 1. the maximum number of epochs has been reached
-            $stop_2 = $epoch ++ > $maxEpochs;
+            // Stop with failure.
+            $failure = ($epoch++ > $maxEpochs) // Stop if the maximum number of epochs has been reached.
+            || ($slope > 0); // Stop if the network's performance on the control data is getting worse.
 
-            // 2. the network's performance on the control data is getting worse
-            $stop_3 = $slope > 0;
-
-        } while (!$stop_1 && !$stop_2 && !$stop_3);
+        } while (!$success && !$failure);
 
         $this->setEpoch($epoch);
         $this->setErrorTrainingSet($squaredError);
         $this->setErrorControlSet($squaredErrorControlSet);
-        $this->setTrainingSuccessful($stop_1);
+        $this->setTrainingSuccessful($success);
 
-        if ($this->isVerbose()) {
-            echo "</table>";
-        }
-
-        return $stop_1;
+        return $success;
     }
 
     /**
-     * After training, this function is used to store the number of epochs the network 
-     * needed for training the network. An epoch is defined as the number of times 
-     * the complete trainingset is used for training.
+     * Sets the number of epochs the network needed for training.
      * 
-     * @param int $epoch 
+     * @param int $epoch    the number of epochs the network needed for training
      */
-    private function setEpoch($epoch) {
+    private function setEpoch($epoch)
+    {
         $this->epoch = $epoch;
     }
 
@@ -508,66 +483,68 @@ class NeuralNetwork
      * 
      * @return int The number of epochs.
      */
-    public function getEpoch() {
+    public function getEpoch()
+    {
         return $this->epoch;
     }
 
     /**
-     * After training, this function is used to store the squared error between the
-     * desired output and the obtained output of the training data.
+     * Sets the squared error between the desired output and the obtained output of the training data.
      * 
-     * @param float $error The squared error of the training data
+     * @param float $error  the squared error of the training data
      */
-    private function setErrorTrainingSet($error) {
+    private function setErrorTrainingSet($error)
+    {
         $this->errorTrainingSet = $error;
     }
 
     /**
-     * Gets the squared error between the desired output and the obtained output of 
-     * the training data.
+     * Gets the squared error between the desired output and the obtained output of the training data.
      * 
-     * @return float The squared error of the training data
+     * @return float    the squared error of the training data
      */
-    public function getErrorTrainingSet() {
+    public function getErrorTrainingSet()
+    {
         return $this->errorTrainingSet;
     }
 
     /**
-     * After training, this function is used to store the squared error between the
-     * desired output and the obtained output of the control data.
+     * Sets the squared error between the desired output and the obtained output of the control data.
      * 
-     * @param float $error The squared error of the control data
+     * @param float $error  the squared error of the control data
      */
-    private function setErrorControlSet($error) {
+    private function setErrorControlSet($error)
+    {
         $this->errorControlSet = $error;
     }
 
     /**
-     * Gets the squared error between the desired output and the obtained output of 
-     * the control data.
+     * Gets the squared error between the desired output and the obtained output of the control data.
      * 
-     * @return float The squared error of the control data
+     * @return float    the squared error of the control data
      */
-    public function getErrorControlSet() {
+    public function getErrorControlSet()
+    {
         return $this->errorControlSet;
     }
 
     /**
-     * After training, this function is used to store whether or not the training
-     * was successful.
+     * Sets whether or not the training was successful.
      * 
-     * @param bool $success 'true' if the training was successful, 'false' otherwise
+     * @param bool $success true if the training was successful, otherwise false
      */
-    private function setTrainingSuccessful($success) {
+    private function setTrainingSuccessful($success)
+    {
         $this->success = $success;
     }
 
     /**
-     * Determines if the training was successful.
+     * Gets whether or not the training was successful.
      * 
-     * @return bool 'true' if the training was successful, 'false' otherwise
+     * @return bool true if the training was successful, otherwise false
      */
-    public function getTrainingSuccessful() {
+    public function getTrainingSuccessful()
+    {
         return $this->success;
     }
 
@@ -586,7 +563,7 @@ class NeuralNetwork
     private function fitLine($data) {
         // based on 
         //    http://mathworld.wolfram.com/LeastSquaresFitting.html
-
+        // TODO: Tidy.
         $n = count($data);
 
         if ($n > 1) {
@@ -614,39 +591,40 @@ class NeuralNetwork
     }
 
     /**
-     * Gets a random weight between [-0.25 .. 0.25]. Used to initialize the network.
+     * Gets a random weight between -0.25 and 0.25, used to initialize the network.
      * 
-     * @return float A random weight
+     * @return float    a random weight
      */
-    private function getRandomWeight($layer) {
+    private function getRandomWeight()
+    {
         return ((mt_rand(0, 1000) / 1000) - 0.5) / 2;
     }
 
     /**
-     * Randomise the weights in the neural network
+     * Randomises the weights in the network.
      */
-    private function initWeights() {
-        // assign a random value to each edge between the layers, and randomise each threshold
-        //
-        // 1. start at layer '1' (so skip the input layer)
-        for ($layer = 1; $layer < $this->layerCount; $layer ++) {
+    private function initWeights()
+    {
+        /* We need to assign a random value to each edge between the layers, and randomise each threshold. */
 
-            $prev_layer = $layer -1;
+        // Skip the input layer.
+        for ($layer = 1; $layer < $this->layerCount; $layer++) {
 
-            // 2. in this layer, walk each node
-            for ($node = 0; $node < $this->nodeCount[$layer]; $node ++) {
+            // Walk each node in the layer.
+            $previousLayer = $layer - 1;
+            for ($node = 0; $node < $this->nodeCount[$layer]; $node++) {
 
-                // 3. randomise this node's threshold
-                $this->nodeThreshold[$layer][$node] = $this->getRandomWeight($layer);
+                // Randomise each node's threshold.
+                $this->nodeThreshold[$layer][$node] = $this->getRandomWeight();
 
-                // 4. this node is connected to each node of the previous layer
-                for ($prev_index = 0; $prev_index < $this->nodeCount[$prev_layer]; $prev_index ++) {
+                // This node is connected to each node of the previous layer.
+                for ($prev_index = 0; $prev_index < $this->nodeCount[$previousLayer]; $prev_index ++) {
 
-                    // 5. this is the 'edge' that needs to be reset / initialised
-                    $this->edgeWeight[$prev_layer][$prev_index][$node] = $this->getRandomWeight($prev_layer);
+                    // This is the edge that needs to be reset/initialized.
+                    $this->edgeWeight[$previousLayer][$prev_index][$node] = $this->getRandomWeight();
 
-                    // 6. initialize the 'previous weightcorrection' at 0.0
-                    $this->previousWeightCorrection[$prev_layer][$prev_index] = 0.0;
+                    // Initialise the previous weight correction to zero.
+                    $this->previousWeightCorrection[$previousLayer][$prev_index] = 0.0;
                 }
             }
         }
@@ -732,7 +710,7 @@ class NeuralNetwork
      * 
      * @return float    the root-mean-square error of the output
      */
-    private function epochRootMeanSquareError()
+    private function trainingSetRootMeanSquareError()
     {
         // Calculate error.
         $error = 0.0;
