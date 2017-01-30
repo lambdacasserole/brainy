@@ -455,7 +455,7 @@ class NeuralNetwork
 
             // Calculate the overall network error after each epoch.
             $squaredError = $this->trainingSetRootMeanSquareError();
-            $squaredErrorControlSet = 0;
+            $squaredErrorControlSet = null;
             $slope = 0;
             if ($epoch % 2 == 0) {
                 $squaredErrorControlSet = $this->controlSetRootMeanSquareError();
@@ -469,7 +469,8 @@ class NeuralNetwork
             }
             
             // Stop with success if the squared error is now lower than the provided maximum error.
-            $success = $squaredError <= $maxError || $squaredErrorControlSet <= $maxError;
+            $success = ($squaredError <= $maxError)
+                || ($squaredErrorControlSet !== null && $squaredErrorControlSet <= $maxError);
 
             // Stop with failure.
             $failure = ($epoch++ > $maxEpochs) // Stop if the maximum number of epochs has been reached.
