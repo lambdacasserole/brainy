@@ -2,6 +2,9 @@
 
 namespace Brainy;
 
+use OutOfBoundsException;
+use OutOfRangeException;
+
 /**
  * Class NeuralNetwork
  */
@@ -75,13 +78,13 @@ class NeuralNetwork
      * Throws an exception if any member of the given array is an invalid learning rate.
      *
      * @param array $learningRates    the learning rate array to check
-     * @throws Exception
+     * @throws OutOfRangeException
      */
     private function validateLearningRates($learningRates)
     {
         foreach ($learningRates as $learningRate) {
             if ($learningRate < 0 || $learningRate > 1) {
-                throw new Exception('All learning rates must be between 0 and 1.');
+                throw new OutOfRangeException('All learning rates must be between 0 and 1.');
             }
         }
     }
@@ -89,8 +92,8 @@ class NeuralNetwork
     /**
      * Sets the learning rate between each layer individually.
      *
-     * @param array ...$learningRates    an array containing the learning rates
-     * @throws Exception
+     * @param array ...$learningRates an array containing the learning rates
+     * @throws OutOfRangeException
      */
     public function setLearningRates(...$learningRates)
     {
@@ -118,6 +121,7 @@ class NeuralNetwork
      * 
      * @param int $layer    the layer to get the learning rate for
      * @return float         the learning rate for that layer
+     * @throws OutOfBoundsException
      */
     public function getLearningRate($layer)
     {
