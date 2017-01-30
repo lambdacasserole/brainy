@@ -465,7 +465,7 @@ class NeuralNetwork
                 if (count($errorControlSet) > $sampleCount) {
                     $averageErrorControlSet[] = array_sum(array_slice($errorControlSet, - $sampleCount)) / $sampleCount;
                 }
-                $slope = $this->fitLine($averageErrorControlSet);
+                list($slope, $offset) = $this->fitLine($averageErrorControlSet);
             }
             
             // Stop with success if the squared error is now lower than the provided maximum error.
