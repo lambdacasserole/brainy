@@ -1,0 +1,19 @@
+{
+    "name": "lambdacasserole/brainy",
+    "description": "Neural network implementation in PHP, packaged for Composer.",
+    "type": "library",
+    "license": "BSD-3-Clause",
+    "authors": [
+        {
+            "name": "Saul Johnson",
+            "email": "saul.a.johnson@gmail.com"
+        }
+    ],
+    "require": {
+    },
+    "autoload": {
+        "psr-4": {
+            "Brainy\\": "src/"
+        }
+    }
+}
