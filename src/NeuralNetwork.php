@@ -93,7 +93,7 @@ class NeuralNetwork
     public function setLearningRates(...$learningRates)
     {
         if (count($learningRates) != $this->layerCount - 1) {
-            throw new OutOfRangeException('The number of learning rates provided must be equal one less than the number'
+            throw new OutOfRangeException('The number of learning rates provided must be equal to one less than the number'
                 . ' of layers.');
         }
         $this->validateLearningRates($learningRates);
