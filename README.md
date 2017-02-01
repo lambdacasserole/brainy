@@ -48,8 +48,8 @@ $output = $network->calculate([-1, -1, 1]); // Gives [-1].
 $output = $network->calculate([-1, 1, 1]); // Gives [1].
 ```
 
-# Compatibility
+## Compatibility
 Uses new array syntax and splats, so won't work on any PHP versions earlier than 5.6.
 
-# Further Reading
+## Further Reading
 The [original repository](https://github.com/infostreams/neural-network) contains more comprehensive documentation, though it may need adjusting slightly due to modifications made to it in this version.
