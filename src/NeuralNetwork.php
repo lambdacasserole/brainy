@@ -753,9 +753,9 @@ class NeuralNetwork
     /**
      * Calculates the root-mean-square error of the output, given the desired output.
      * 
-     * @param array $input         the input to test
+     * @param array $input      the input to test
      * @param array $desired    the desired output
-     * @return float             the root-mean-square error of the output compared to the desired output
+     * @return float            the root-mean-square error of the output compared to the desired output
      */
     private function rootMeanSquareError($input, $desired)
     {
